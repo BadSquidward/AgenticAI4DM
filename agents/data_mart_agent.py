@@ -5,6 +5,7 @@ import config
 import streamlit as st
 import re
 
+
 class DataMartAgent:
     def __init__(self, api_key: str):
         genai.configure(api_key=api_key)

@@ -1,5 +1,6 @@
 # agents/data_pipeline_agent.py
 import google.generativeai as genai
+import streamlit as st
 from tools.db_tools import execute_sql_query, get_db_engine
 from tools.file_tools import create_dataframe_from_csv_content
 import config # Assuming config.py is in the parent directory
