@@ -1,5 +1,0 @@
-streamlit
-google-generativeai
-pandas
-SQLAlchemy
-# Add any other libraries you might use, e.g., mysql-connector-python, psycopg2-binary for specific DBs
