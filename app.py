@@ -118,4 +118,3 @@ st.sidebar.write("1. Set your `GEMINI_API_KEY` in `config.py` or as an environme
 st.sidebar.write("2. Click 'Initialize Prototype Database' to create basic tables.")
 st.sidebar.write("3. Select an Agent and enter your command in natural language.")
 st.sidebar.write("4. Observe the Agent's thought process and the code/actions it generates.")
-st.sdiebar.write(config.GEMINI_API_KEY)
