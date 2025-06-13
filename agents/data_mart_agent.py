@@ -33,7 +33,7 @@ class DataMartAgent:
         Returns:
             tuple: (ข้อความตอบกลับทั้งหมด, SQL ที่สร้าง, ผลลัพธ์ Query ในรูปแบบ JSON string)
         """
-        full_response_text = ""
+        full_response_parts = []
         sql_generated = ""
         query_results_json = None
 
@@ -46,59 +46,57 @@ class DataMartAgent:
         self.chat_session.send_message(context_prompt)
 
         try:
-            response_generator = self.chat_session.send_message(user_prompt, stream=True)
+            response = self.chat_session.send_message(user_prompt, stream=False) # <--- Changed to stream=False
 
-            current_display_text = ""
-            for chunk in response_generator:
-                if chunk.text:
-                    current_display_text += chunk.text
-                    st_response_container.markdown(current_display_text)
+            if response.text:
+                full_response_parts.append(response.text)
+                st_response_container.markdown("".join(full_response_parts))
 
-                if hasattr(chunk, 'function_calls') and chunk.function_calls:
-                    for fc in chunk.function_calls:
-                        tool_name = fc.name
-                        tool_args = fc.args
-                        tool_output_str = f"\n\n**Agent กำลังเรียกใช้ Tool:** `{tool_name}` พร้อม Arguments: `{tool_args}`\n"
-                        st_response_container.markdown(current_display_text + tool_output_str)
+            if hasattr(response, 'function_calls') and response.function_calls:
+                for fc in response.function_calls:
+                    tool_name = fc.name
+                    tool_args = fc.args
+                    tool_output_str = f"\n\n**Agent กำลังเรียกใช้ Tool:** `{tool_name}` พร้อม Arguments: `{tool_args}`\n"
+                    full_response_parts.append(tool_output_str)
+                    st_response_container.markdown("".join(full_response_parts))
 
-                        actual_output = "Tool output not available yet."
-                        # บังคับใช้ DATABASE_URL จาก config เสมอสำหรับ Tools ที่เกี่ยวข้องกับฐานข้อมูล
-                        if tool_name in ["execute_sql_query", "get_table_schema"]:
-                             tool_args['database_url'] = config.DATABASE_URL
+                    actual_output = "Tool output not available yet."
+                    # บังคับใช้ DATABASE_URL จาก config เสมอสำหรับ Tools ที่เกี่ยวข้องกับฐานข้อมูล
+                    if tool_name in ["execute_sql_query", "get_table_schema"]:
+                         tool_args['database_url'] = config.DATABASE_URL
 
-                        # ทำการเรียกใช้ Tool จริงๆ
-                        if tool_name == "execute_sql_query":
-                            actual_output = execute_sql_query(**tool_args)
-                            query_results_json = actual_output # เก็บผลลัพธ์ Query
-                            full_response_text += tool_output_str + f"Tool Output:\n```json\n{actual_output}\n```\n"
-                            st_response_container.markdown(current_display_text + tool_output_str + f"Tool Output:\n```json\n{actual_output}\n```\n")
-                        elif tool_name == "get_table_schema":
-                             actual_output = get_table_schema(**tool_args)
-                             full_response_text += tool_output_str + f"Tool Output:\n```json\n{actual_output}\n```\n"
-                             st_response_container.markdown(current_display_text + tool_output_str + f"Tool Output:\n```json\n{actual_output}\n```\n")
-                        else:
-                            actual_output = f"Tool `{tool_name}` ไม่รองรับโดย Data Mart Agent"
-                            full_response_text += tool_output_str + actual_output
-                            st_response_container.markdown(current_display_text + tool_output_str + actual_output)
+                    # ทำการเรียกใช้ Tool จริงๆ
+                    if tool_name == "execute_sql_query":
+                        actual_output = execute_sql_query(**tool_args)
+                        query_results_json = actual_output # เก็บผลลัพธ์ Query
+                        full_response_parts.append(f"Tool Output:\n```json\n{actual_output}\n```\n")
+                        st_response_container.markdown("".join(full_response_parts))
+                    elif tool_name == "get_table_schema":
+                         actual_output = get_table_schema(**tool_args)
+                         full_response_parts.append(f"Tool Output:\n```json\n{actual_output}\n```\n")
+                         st_response_container.markdown("".join(full_response_parts))
+                    else:
+                        actual_output = f"Tool `{tool_name}` ไม่รองรับโดย Data Mart Agent"
+                        full_response_parts.append(actual_output)
+                        st_response_container.markdown("".join(full_response_parts))
 
-                        # ส่งผลลัพธ์ของ Tool กลับไปยัง Gemini
-                        self.chat_session.send_message(genai.Part.from_function_response(name=tool_name, response=actual_output))
+                    # ส่งผลลัพธ์ของ Tool กลับไปยัง Gemini
+                    self.chat_session.send_message(genai.Part.from_function_response(name=tool_name, response=actual_output))
             
             # ดึงข้อความสรุปสุดท้ายจาก Gemini หลังจาก Tool Call
-            final_response_chunk = self.chat_session.send_message("สรุปผลลัพธ์สุดท้ายของการดำเนินการทั้งหมดจากข้อมูล Tool output ที่ได้รับอย่างละเอียด", stream=True)
-            for chunk in final_response_chunk:
-                if chunk.text:
-                    current_display_text += chunk.text
-                    st_response_container.markdown(current_display_text)
+            final_response = self.chat_session.send_message("สรุปผลลัพธ์สุดท้ายของการดำเนินการทั้งหมดจากข้อมูล Tool output ที่ได้รับอย่างละเอียด", stream=False) # <--- Changed to stream=False
+            if final_response.text:
+                full_response_parts.append(final_response.text)
+                st_response_container.markdown("".join(full_response_parts))
             
-            full_response_text = current_display_text
+            final_full_response_text = "".join(full_response_parts)
 
             # ตรวจสอบและดึง SQL Code ที่ Gemini อาจสร้างขึ้นในรูปแบบ Text
-            sql_blocks = re.findall(r"```sql\n(.*?)```", full_response_text, re.DOTALL)
+            sql_blocks = re.findall(r"```sql\n(.*?)```", final_full_response_text, re.DOTALL)
             if sql_blocks:
                 sql_generated += "\n\n".join(sql_blocks)
 
-            return full_response_text, sql_generated, query_results_json
+            return final_full_response_text, sql_generated, query_results_json
 
         except Exception as e:
             st.error(f"เกิดข้อผิดพลาดในการสื่อสารกับ Data Mart Agent: {e}")
