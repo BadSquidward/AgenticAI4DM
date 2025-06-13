@@ -9,7 +9,7 @@ class DataPipelineAgent:
     def __init__(self, api_key: str):
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel(
-            'gemini-pro',
+            'gemini-2.0-flash-lite',
             tools=[execute_sql_query, create_dataframe_from_csv_content]
         )
         self.chat_session = self.model.start_chat(enable_automatic_function_calling=True)
@@ -28,7 +28,7 @@ class DataPipelineAgent:
                     full_response_text += chunk.text
                     st_placeholder.markdown(full_response_text) # Update text dynamically
 
-                if chunk.function_calls:
+                if hasattr(chunk, 'function_calls') and chunk.function_calls:
                     for fc in chunk.function_calls:
                         tool_name = fc.name
                         tool_args = fc.args
