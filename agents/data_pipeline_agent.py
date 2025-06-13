@@ -4,6 +4,7 @@ import streamlit as st
 from tools.db_tools import execute_sql_query, get_db_engine
 from tools.file_tools import create_dataframe_from_csv_content
 import config # Assuming config.py is in the parent directory
+import re
 
 class DataPipelineAgent:
     def __init__(self, api_key: str):
